@@ -18,6 +18,9 @@ SPECS = [
     ("f20", REG, 20, ASCII),
     ("f16b", BOLD, 16, ASCII),
     ("fcat", BOLD, 232, "VFRMILNA/"),
+    ("f36b", BOLD, 36, ASCII),
+    ("f14b", BOLD, 14, ASCII),
+    ("f14", REG, 14, ASCII),
 ]
 
 

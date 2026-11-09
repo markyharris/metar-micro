@@ -24,6 +24,7 @@ SPECS = [
     ("f24b", BOLD, 24, ASCII + "\u00b0"),
     ("f20b", BOLD, 20, ASCII + "\u00b0"),
     ("f96cat", BOLD, 96, "VFRMILNA/"),
+    ("f96wx", BOLD, 96, "0123456789.\u00b0F- "),
 ]
 
 

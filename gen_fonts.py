@@ -21,6 +21,9 @@ SPECS = [
     ("f36b", BOLD, 36, ASCII),
     ("f14b", BOLD, 14, ASCII),
     ("f14", REG, 14, ASCII),
+    ("f24b", BOLD, 24, ASCII + "\u00b0"),
+    ("f20b", BOLD, 20, ASCII + "\u00b0"),
+    ("f96cat", BOLD, 96, "VFRMILNA/"),
 ]
 
 

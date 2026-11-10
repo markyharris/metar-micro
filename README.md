@@ -62,7 +62,6 @@ wiring, flashing, first run, and every gotcha we hit along the way.
 |---|---|
 | Waveshare 7.5″ e-Paper HAT (B) | 800×480, black/white/red, V2 panel; driver HAT Rev2.2 with the PH2.0 8-pin socket |
 | ESP32-S3-DevKitC-1 (N8R8) | The reference build; MicroPython `GENERIC_S3-SPIRAM_OCT` |
-| — or classic ESP32-WROOM-32 devkit (HW-463) | Same code, plain `GENERIC` firmware build |
 | PH2.0 8-pin cable | HAT socket to the controller (pre-crimped kit, far ends bare) |
 | USB power | 5 V supply; some boards also want a USB feed alongside pin power |
 

@@ -8,7 +8,7 @@
 
 import network
 import time
-import urequests
+import fetch
 import ntptime
 import framebuf
 import gc
@@ -84,13 +84,13 @@ def weekday(y, m, d):
 
 
 def get_json(url):
-    resp = urequests.get(url)
-    if resp.status_code != 200:
-        print("fetch failed:", resp.status_code, url[:60])
-        resp.close()
+    # Via fetch.py: raw-socket GET with fresh-connection retries
+    # (urequests died on the gateway's intermittent empty status
+    # lines - see fetch.py's header).
+    status, data = fetch.get_json(url)
+    if status != 200:
+        print("fetch failed: HTTP", status, url[:60])
         return None
-    data = resp.json()
-    resp.close()
     return data
 
 

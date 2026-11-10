@@ -7,10 +7,15 @@
 # km, pressure hPa, cloud heights m. One deviation, deliberate: the
 # info box converts AWC's elevation (meters) to feet properly - the
 # Pi prints the meter value labeled "ft".
+# Units (Nov 10, 2026): render(airport, units) - "imperial" shows
+# degF / knots / miles / inHg / feet, "metric" (the default, and
+# this page's original baked settings) degC / km/h / km / hPa /
+# meters. AWC source units: temp degC, wind kt, visib statute
+# miles, altim hPa, cloud bases feet, elevation meters.
 
 import network
 import time
-import urequests
+import fetch
 import ntptime
 import framebuf
 import gc
@@ -56,9 +61,11 @@ def local_now_str():
 
 
 # ---- field formats (Pi get_* routines, his settings) ----------------
-def fmt_temp(m):
+def fmt_temp(m, units):
     if m.get("temp") is None:
         return "n/a"
+    if units == "imperial":
+        return "%.1f" % (m["temp"] * 9 / 5 + 32) + " " + DEG + "F"
     return "%.1f" % m["temp"] + " " + DEG + "C"
 
 
@@ -74,47 +81,59 @@ def fmt_wdir(m):
     return s + DEG
 
 
-def fmt_kmh(kt):
-    return str(round(kt * 1.852, 1)) + " km/h"
+def fmt_wind(v, units):
+    # AWC wind speeds arrive in knots.
+    if units == "imperial":
+        return "%d kt" % int(round(v))
+    return str(round(v * 1.852, 1)) + " km/h"
 
 
-def fmt_wspd(m):
+def fmt_wspd(m, units):
     v = m.get("wspd")
     if v is None:
         return "n/a"
     if v == 0:
         return "Calm"
-    return fmt_kmh(v)
+    return fmt_wind(v, units)
 
 
-def fmt_wgst(m):
+def fmt_wgst(m, units):
     v = m.get("wgst")
     if v is None:
         return "n/a"
-    return fmt_kmh(v)
+    return fmt_wind(v, units)
 
 
-def fmt_altim(m):
+def fmt_altim(m, units):
     if m.get("altim") is None:
         return "n/a"
+    if units == "imperial":
+        return "%.2f inHg" % (m["altim"] * 0.02953)
     return "%.0f" % m["altim"] + " hPa"
 
 
-def fmt_visib(m):
+def fmt_visib(m, units):
     v = m.get("visib")
     if v is None:
         return "n/a"
+    if units == "imperial":
+        s = str(v).strip()
+        if s.endswith(".0"):
+            s = s[:-2]
+        return s + " mi"
     miles = float(str(v).strip("+"))
     return str(round(miles * 1.609344, 1)) + " km"
 
 
-def fmt_clouds(m):
+def fmt_clouds(m, units):
     out = []
     for c in (m.get("clouds") or [])[:3]:
         cover = c.get("cover") or ""
         base = c.get("base")
         if base is None:
             out.append(cover + " ")
+        elif units == "imperial":
+            out.append("%s %s ft" % (cover, str(int(round(base)))))
         else:
             out.append("%s %s m" % (cover, str(round(base * 0.3048, 0))))
     return out
@@ -127,7 +146,7 @@ def box_border(fb, x, y, w, h, t, col):
     fb.fill_rect(x + w - t, y, t, h, col)
 
 
-def render(airport=None):
+def render(airport=None, units="metric"):
     # Returns the flight category on success, None on fetch failure.
     # Called by main.py's loop; also runnable standalone (see bottom).
     join_wifi()
@@ -137,13 +156,13 @@ def render(airport=None):
         print("ntp failed (continuing):", e)
     url = ("https://aviationweather.gov/api/data/metar?ids=%s"
            "&format=json&hours=3" % (airport or AIRPORT))
-    resp = urequests.get(url)
-    if resp.status_code != 200:
-        print("fetch failed:", resp.status_code, resp.text[:200])
-        resp.close()
+    status, data = fetch.get_json(url)
+    if status != 200:
+        print("fetch failed: HTTP", status)
         return
-    data = resp.json()
-    resp.close()
+    if data is None:
+        print("fetch failed: unparseable response")
+        return
     if not data:
         print("no METAR available for", AIRPORT)
         return
@@ -199,12 +218,12 @@ def render(airport=None):
     # Fields
     fields = [
         (30, 110, "Weather:", m.get("wxString") or "n/a"),
-        (545, 110, "Temperature:", fmt_temp(m)),
+        (545, 110, "Temperature:", fmt_temp(m, units)),
         (30, 170, "Wind Vector:", fmt_wdir(m)),
-        (545, 170, "Wind Speed:", fmt_wspd(m)),
-        (30, 230, "Wind Gust:", fmt_wgst(m)),
-        (545, 230, "Baro Press:", fmt_altim(m)),
-        (30, 290, "Visibility:", fmt_visib(m)),
+        (545, 170, "Wind Speed:", fmt_wspd(m, units)),
+        (30, 230, "Wind Gust:", fmt_wgst(m, units)),
+        (545, 230, "Baro Press:", fmt_altim(m, units)),
+        (30, 290, "Visibility:", fmt_visib(m, units)),
         (545, 290, "Metar Type:", m.get("metarType") or "n/a"),
     ]
     for x, y, label, val in fields:
@@ -212,7 +231,7 @@ def render(airport=None):
         textdraw.draw_text(bfb, f24b, x, y + 29, val, 0)
 
     textdraw.draw_text(bfb, f24b, 30, 350, "Cloud Cover:", 0)
-    for i, cl in enumerate(fmt_clouds(m)):
+    for i, cl in enumerate(fmt_clouds(m, units)):
         textdraw.draw_text(bfb, f24b, 30, 377 + i * 27, cl, 0)
 
     # Info box
@@ -221,7 +240,9 @@ def render(airport=None):
     info = [
         "ICAO ID: " + str(m.get("icaoId")),
         "Obs Time: " + str(m.get("obsTime")),
-        "Elevation: " + str(round((m.get("elev") or 0) * 3.28084)) + " ft",
+        "Elevation: " + (str(int(round(m.get("elev") or 0))) + " m"
+                         if units != "imperial" else
+                         str(round((m.get("elev") or 0) * 3.28084)) + " ft"),
         "Coordinates: " + str(m.get("lat")) + " " + str(m.get("lon")),
         "Info: " + str(m.get("name")),
     ]

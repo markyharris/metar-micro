@@ -14,7 +14,7 @@
 import network
 import time
 import math
-import urequests
+import fetch
 import ntptime
 import framebuf
 import gc
@@ -112,26 +112,27 @@ def draw_box(bfb, rfb, x, y, w, apt, m):
                        y + 46, name, ink)
 
 
-def render(home=None):
+def render(home=None, grid=None):
     # Returns the HOME airport's flight category on success, None on
-    # fetch failure. Called by main.py's loop; also runnable standalone.
+    # fetch failure. Called by main.py's loop (which passes the
+    # admin page's 12-airport grid); also runnable standalone, where
+    # grid falls back to the built-in AIRPORTS list.
     hv = home or HOME
+    airports = list(grid) if grid else list(AIRPORTS)
     join_wifi()
     try:
         ntptime.settime()
     except Exception as e:
         print("ntp failed (continuing):", e)
     url = ("https://aviationweather.gov/api/data/metar?ids=%s"
-           "&format=json&hours=3" % ",".join(AIRPORTS + [hv]))
-    resp = urequests.get(url)
-    if resp.status_code != 200:
-        print("fetch failed:", resp.status_code, resp.text[:200])
-        resp.close()
+           "&format=json&hours=3" % ",".join(airports + [hv]))
+    status, arr = fetch.get_json(url)
+    if status != 200 or not arr:
+        print("fetch failed: HTTP", status)
         return
     data = {}
-    for m in resp.json():
+    for m in arr:
         data.setdefault(m.get("icaoId"), m)
-    resp.close()
     print("reports for", len(data), "stations")
 
     black = bytearray(b"\xFF" * epd7in5b.PLANE_BYTES)
@@ -139,7 +140,7 @@ def render(home=None):
     bfb = framebuf.FrameBuffer(black, W, H, framebuf.MONO_HLSB)
     rfb = framebuf.FrameBuffer(red, W, H, framebuf.MONO_HLSB)
 
-    for i, apt in enumerate(AIRPORTS):
+    for i, apt in enumerate(airports):
         col, row = i // 4, i % 4
         draw_box(bfb, rfb, COLS_X[col], ROWS_Y[row],
                  CELL_W[col] - 25, apt, data.get(apt))

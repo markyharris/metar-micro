@@ -10,7 +10,7 @@
 
 import network
 import time
-import urequests
+import fetch
 import ntptime
 import framebuf
 import gc
@@ -65,13 +65,13 @@ def render(airport=None):
         print("ntp failed (continuing):", e)
     url = ("https://aviationweather.gov/api/data/metar?ids=%s"
            "&format=json&hours=3" % (airport or AIRPORT))
-    resp = urequests.get(url)
-    if resp.status_code != 200:
-        print("fetch failed:", resp.status_code, resp.text[:200])
-        resp.close()
+    status, data = fetch.get_json(url)
+    if status != 200:
+        print("fetch failed: HTTP", status)
         return
-    data = resp.json()
-    resp.close()
+    if data is None:
+        print("fetch failed: unparseable response")
+        return
     if not data:
         print("no METAR available for", AIRPORT)
         return

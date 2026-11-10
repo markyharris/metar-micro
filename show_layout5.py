@@ -112,13 +112,18 @@ def draw_box(bfb, rfb, x, y, w, apt, m):
                        y + 46, name, ink)
 
 
-def main():
+def render(home=None):
+    # Returns the HOME airport's flight category on success, None on
+    # fetch failure. Called by main.py's loop; also runnable standalone.
+    hv = home or HOME
     join_wifi()
     try:
         ntptime.settime()
     except Exception as e:
         print("ntp failed (continuing):", e)
-    resp = urequests.get(URL)
+    url = ("https://aviationweather.gov/api/data/metar?ids=%s"
+           "&format=json&hours=3" % ",".join(AIRPORTS + [hv]))
+    resp = urequests.get(url)
     if resp.status_code != 200:
         print("fetch failed:", resp.status_code, resp.text[:200])
         resp.close()
@@ -140,7 +145,7 @@ def main():
                  CELL_W[col] - 25, apt, data.get(apt))
 
     # Home strip
-    m = data.get(HOME)
+    m = data.get(hv)
     cat = (m.get("fltCat") if m else None) or "N/A"
     if cat == "MVFR":
         round_box(bfb, 20, 370, 765, 95, RADIUS, 0, True)
@@ -154,7 +159,7 @@ def main():
     else:
         round_box(bfb, 20, 370, 765, 95, RADIUS, 0, False)
         plane, ink = bfb, 0
-    textdraw.draw_text(plane, f36b, 30, 380, "%s:%s" % (HOME, cat), ink)
+    textdraw.draw_text(plane, f36b, 30, 380, "%s:%s" % (hv, cat), ink)
     if m:
         textdraw.draw_text(plane, f14, 30, 420, (m.get("name") or "")[:26], ink)
     textdraw.draw_text(plane, f16b, 30, 445, local_now_str(), ink)
@@ -172,6 +177,8 @@ def main():
     print("refresh done in", time.ticks_diff(time.ticks_ms(), t0), "ms")
     epd.sleep()
     print("layout 5 on panel")
+    return cat
 
 
-main()
+if __name__ == "__main__":
+    render()

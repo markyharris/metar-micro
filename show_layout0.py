@@ -55,13 +55,17 @@ def local_now_str():
     return "Last Updated at %02d:%02d %s" % (h, t[4], ampm)
 
 
-def main():
+def render(airport=None):
+    # Returns the flight category on success, None on fetch failure.
+    # Called by main.py's loop; also runnable standalone (see bottom).
     join_wifi()
     try:
         ntptime.settime()
     except Exception as e:
         print("ntp failed (continuing):", e)
-    resp = urequests.get(URL)
+    url = ("https://aviationweather.gov/api/data/metar?ids=%s"
+           "&format=json&hours=3" % (airport or AIRPORT))
+    resp = urequests.get(url)
     if resp.status_code != 200:
         print("fetch failed:", resp.status_code, resp.text[:200])
         resp.close()
@@ -130,6 +134,8 @@ def main():
     print("refresh done in", time.ticks_diff(time.ticks_ms(), t0), "ms")
     epd.sleep()
     print("layout 0 on panel")
+    return cat
 
 
-main()
+if __name__ == "__main__":
+    render()

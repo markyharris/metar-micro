@@ -94,13 +94,17 @@ def get_json(url):
     return data
 
 
-def main():
+def render(airport=None):
+    # Returns True on success, None on fetch failure. Called by
+    # main.py's loop; also runnable standalone (see bottom).
     join_wifi()
     try:
         ntptime.settime()
     except Exception as e:
         print("ntp failed (continuing):", e)
-    awc = get_json(AWC_URL)
+    awc_url = ("https://aviationweather.gov/api/data/metar?ids=%s"
+               "&format=json&hours=3" % (airport or AIRPORT))
+    awc = get_json(awc_url)
     if not awc:
         return
     m = awc[0]
@@ -187,6 +191,8 @@ def main():
     print("refresh done in", time.ticks_diff(time.ticks_ms(), t0), "ms")
     epd.sleep()
     print("weather page on panel")
+    return True
 
 
-main()
+if __name__ == "__main__":
+    render()

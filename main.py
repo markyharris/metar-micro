@@ -83,6 +83,7 @@ PAGE_MODULES = {
     "layout3": "show_layout3",
     "layout4": "show_layout4",
     "layout5": "show_layout5",
+    "layout6": "show_layout6",
     "layout7": "show_layout7",
     "layout8": "show_layout8",
     "weather": "show_weather",
@@ -94,6 +95,7 @@ PAGE_TITLES = {
     "layout3": "Layout 3 - jumbo category, rounded box",
     "layout4": "Layout 4 - black column + big category",
     "layout5": "Layout 5 - 12-airport grid",
+    "layout6": "Layout 6 - 12-hour trend",
     "layout7": "Layout 7 - circles",
     "layout8": "Layout 8 - TAF forecast",
     "weather": "City weather page",
@@ -102,8 +104,8 @@ PAGE_TITLES = {
 # in numeric order. (Preferred-mode rotation follows this order
 # too, since the saved preferred list is built in listing order.)
 ADMIN_PAGE_ORDER = ["weather", "layout0", "layout1", "layout2",
-                    "layout3", "layout4", "layout5", "layout7",
-                    "layout8"]
+                    "layout3", "layout4", "layout5", "layout6",
+                    "layout7", "layout8"]
 # Modules purged after each page render so its fonts leave RAM.
 FONT_MODULES = ["f14", "f14b", "f16b", "f20", "f20b", "f24", "f24b",
                 "f36b", "f48b", "f96cat", "f96wx", "fcat", "fcat144",
@@ -572,9 +574,10 @@ def serve_once():
                     break
                 tries += 1
             apply_save(body)
-            send_response(cl, "<html><body><h3>Saved.</h3>"
-                          "<p><a href='/'>Back to admin</a></p>"
-                          "</body></html>")
+            # Bounce straight back to the admin page (Mark's ask,
+            # Nov 10, 2026) - the re-rendered form showing the
+            # saved values is the confirmation.
+            redirect_home(cl)
         elif path.startswith("/off"):
             cfg["display_off"] = True
             save_cfg()
@@ -661,7 +664,7 @@ def run_page(name):
             result = mod.render(cfg.get("airport"),
                                 cfg.get("grid12"))
         elif name in ("layout1", "layout2", "layout3", "layout4",
-                      "layout7", "layout8"):
+                      "layout7", "layout8", "layout6"):
             result = mod.render(cfg.get("airport"),
                                 cfg.get("units", "metric"))
         else:

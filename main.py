@@ -357,7 +357,10 @@ def html_page():
     p.append("<form method='POST' action='/save'>")
     p.append("Airport (ICAO): <input name='airport' value='" +
              str(cfg.get("airport")) +
-             "' size='8' style='font-size:16px'><br><br>")
+             "' size='8' style='font-size:16px;"
+             "text-transform:uppercase' "
+             "oninput='this.value=this.value.toUpperCase()'>"
+             "<br><br>")
     p.append("Mode: <select name='mode'>")
     p.append("<option value='cycle'" + sel(cfg.get("mode") == "cycle") +
              ">Cycle all pages</option>")
@@ -399,7 +402,9 @@ def html_page():
     for i in range(12):
         val = str(grid[i]) if i < len(grid) else ""
         p.append("<input name='g" + str(i) + "' value='" + val +
-                 "' size='6' style='font-size:15px;margin:2px'>")
+                 "' size='6' style='font-size:15px;margin:2px;"
+                 "text-transform:uppercase' "
+                 "oninput='this.value=this.value.toUpperCase()'>")
         if i % 4 == 3:
             p.append("<br>")
     p.append("<br><br>")

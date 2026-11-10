@@ -6,7 +6,12 @@ epd7in5b.py
 textdraw.py
 show_layout0.py
 show_layout1.py
+show_layout2.py
+show_layout3.py
+show_layout4.py
 show_layout5.py
+show_layout7.py
+show_layout8.py
 show_weather.py
 f14.py
 f14b.py
@@ -20,3 +25,4 @@ f48b.py
 f96cat.py
 f96wx.py
 fcat.py
+fcat144.py

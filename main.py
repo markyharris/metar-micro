@@ -79,18 +79,35 @@ DEFAULTS = {
 PAGE_MODULES = {
     "layout0": "show_layout0",
     "layout1": "show_layout1",
+    "layout2": "show_layout2",
+    "layout3": "show_layout3",
+    "layout4": "show_layout4",
     "layout5": "show_layout5",
+    "layout7": "show_layout7",
+    "layout8": "show_layout8",
     "weather": "show_weather",
 }
 PAGE_TITLES = {
     "layout0": "Layout 0 - jumbo category",
     "layout1": "Layout 1 - detailed grid",
+    "layout2": "Layout 2 - two-column data",
+    "layout3": "Layout 3 - jumbo category, rounded box",
+    "layout4": "Layout 4 - black column + big category",
     "layout5": "Layout 5 - 12-airport grid",
+    "layout7": "Layout 7 - circles",
+    "layout8": "Layout 8 - TAF forecast",
     "weather": "City weather page",
 }
+# Admin page listing order: city weather first, then the layouts
+# in numeric order. (Preferred-mode rotation follows this order
+# too, since the saved preferred list is built in listing order.)
+ADMIN_PAGE_ORDER = ["weather", "layout0", "layout1", "layout2",
+                    "layout3", "layout4", "layout5", "layout7",
+                    "layout8"]
 # Modules purged after each page render so its fonts leave RAM.
 FONT_MODULES = ["f14", "f14b", "f16b", "f20", "f20b", "f24", "f24b",
-                "f36b", "f48b", "f96cat", "f96wx", "fcat", "textdraw"]
+                "f36b", "f48b", "f96cat", "f96wx", "fcat", "fcat144",
+                "textdraw"]
 AUTO_INTERVAL = {"VFR": 3600, "MVFR": 1800, "IFR": 1200, "LIFR": 600}
 
 cfg = dict(DEFAULTS)
@@ -378,7 +395,7 @@ def html_page():
              "METAR data pages; the city weather page always uses "
              "&deg;F and mph.</span><br><br>")
     p.append("Preferred pages:<br>")
-    for name in cfg.get("pages", []):
+    for name in ADMIN_PAGE_ORDER:
         p.append("<label><input type='checkbox' name='pref_" + name +
                  "'" + chk(name in pref) + "> " +
                  PAGE_TITLES.get(name, name) + "</label><br>")
@@ -464,7 +481,7 @@ def apply_save(body):
     except Exception:
         pass
     pref = []
-    for name in cfg.get("pages", []):
+    for name in ADMIN_PAGE_ORDER:
         if "pref_" + name in data:
             pref.append(name)
     if pref:
@@ -643,7 +660,8 @@ def run_page(name):
         if name == "layout5":
             result = mod.render(cfg.get("airport"),
                                 cfg.get("grid12"))
-        elif name == "layout1":
+        elif name in ("layout1", "layout2", "layout3", "layout4",
+                      "layout7", "layout8"):
             result = mod.render(cfg.get("airport"),
                                 cfg.get("units", "metric"))
         else:
@@ -723,7 +741,7 @@ def run():
             ntptime.settime()
         except Exception:
             pass
-        pages = cfg.get("pages", [])
+        pages = list(PAGE_MODULES)
         if cfg.get("mode") == "preferred":
             pages = [p for p in cfg.get("preferred", [])] or pages
         for page in pages:

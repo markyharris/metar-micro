@@ -135,7 +135,7 @@ def fmt_clouds(m, units):
         elif units == "imperial":
             out.append("%s %s ft" % (cover, str(int(round(base)))))
         else:
-            out.append("%s %s m" % (cover, str(round(base * 0.3048, 0))))
+            out.append("%s %s m" % (cover, str(int(round(base * 0.3048)))))
     return out
 
 

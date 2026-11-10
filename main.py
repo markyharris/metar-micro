@@ -475,7 +475,10 @@ def apply_save(body):
     ok = True
     for i in range(12):
         v = (data.get("g" + str(i)) or "").strip().upper()
-        if not (3 <= len(v) <= 5 and v.isalnum()):
+        # (No str.isalnum - MicroPython's str doesn't have it;
+        # check A-Z / 0-9 by hand.)
+        if not (3 <= len(v) <= 5 and all(
+                ("A" <= c <= "Z") or ("0" <= c <= "9") for c in v)):
             ok = False
             break
         grid.append(v)

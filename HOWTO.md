@@ -10,22 +10,18 @@ debugging time during development.
 | Part | What to get | Notes |
 |---|---|---|
 | E-paper panel + driver HAT | **Waveshare 7.5inch e-Paper HAT (B)** (Waveshare SKU 13505) | 800×480, black/white/**red**, **V2** panel. The (B) matters: the plain 7.5″ HAT is black/white only and uses a different driver. This build used the Driver HAT **Rev2.2** with the **PH2.0 8-pin** cable socket (count the pins — a Rev2.3 HAT uses a 9-pin GH1.25 socket instead). [Waveshare wiki](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT) · [Driver HAT manual (PDF)](https://files.waveshare.com/upload/8/8e/E-paper-driver-hat-user-manual.pdf) |
-| Controller | **ESP32-S3-DevKitC-1, N8R8** (8 MB flash, 8 MB octal PSRAM) | The reference build. A classic **ESP32-WROOM-32 devkit** (e.g. HW-463) also runs the same code unchanged — see the firmware table below |
+| Controller | **ESP32-S3-DevKitC-1, N8R8** (8 MB flash, 8 MB octal PSRAM) | The build this software is written and tested for |
 | Cable | **PH2.0 8-pin pre-crimped cable kit** | One end plugs into the HAT socket; clip the far ends to bare wire for header pins or a screw-terminal breakout |
 | Breakout (optional) | 44-pin ESP32-S3 screw-terminal breakout | Makes the wiring far less fiddly; not required |
-| Power | 5 V USB supply (1 A+) and a **data-capable** USB cable | USB-C for the S3, micro-USB for the classic board. Charge-only cables will light the board's LED and pass no data — see gotchas |
+| Power | 5 V USB supply (1 A+) and a **data-capable** USB-C cable | Charge-only cables will light the board's LED and pass no data — see gotchas |
 | Computer software | **Thonny 4.1 or newer** | From [thonny.org](https://thonny.org). The version matters — see gotchas |
-| Firmware | MicroPython v1.29.0 (or current stable) | From the [MicroPython download page](https://micropython.org/download/) — pick per the table below |
+| Firmware | MicroPython v1.29.0 (or current stable) | From the [MicroPython download page](https://micropython.org/download/) |
 
-Firmware builds used by this project:
-
-| Board | Build to download | Flash address |
-|---|---|---|
-| ESP32-S3 N8R8 | `ESP32_GENERIC_S3-SPIRAM_OCT-*.bin` (e.g. `ESP32_GENERIC_S3-SPIRAM_OCT-20260824-v1.29.0.bin`) | `0x0` |
-| Classic ESP32-WROOM-32 | `ESP32_GENERIC-*.bin` | `0x1000` |
-
-Thonny's installer handles the address **if** the chip family is
-set correctly in its dialog (next section).
+The firmware build for this board is
+`ESP32_GENERIC_S3-SPIRAM_OCT-*.bin` (e.g.
+`ESP32_GENERIC_S3-SPIRAM_OCT-20260824-v1.29.0.bin`), flashed at
+address `0x0`. Thonny's installer handles the address **if** the
+chip family is set correctly in its dialog (step 4).
 
 ## 2. Set the HAT's configuration switches
 
@@ -44,7 +40,7 @@ drawing after being handled.
 The HAT's 8-pin socket carries, in order:
 **BUSY · RST · DC · CS · CLK · DIN · GND · VCC** (as silkscreened
 on the HAT). Land them on the controller like this — the same
-GPIOs on both board families:
+GPIOs:
 
 | HAT signal | ESP32 GPIO | Notes |
 |---|---|---|
@@ -73,17 +69,15 @@ the wiring were all proven good before the ribbon was suspected.)
 ## 4. Flash MicroPython with Thonny
 
 1. Install Thonny **4.1+** (5.x is fine).
-2. Connect the board by USB. On Windows, a classic ESP32 board
-   (CP2102 USB-serial) may need the Silicon Labs CP210x VCP
-   driver before any COM port appears; the S3 uses native USB
-   and needs none.
+2. Connect the board by USB. The S3 uses native USB, so no
+   serial driver is needed — the port just appears.
 3. In Thonny: *Tools → Options → Interpreter* → MicroPython
    (ESP32), select the port, then **Install or update
    MicroPython**.
 4. Set the **MicroPython family** field to match your chip
    (**ESP32-S3** for the S3 build). This field is what makes
-   Thonny write the S3 image at `0x0` instead of the classic
-   address. To use a firmware file you downloaded yourself, pick
+   Thonny write the S3 image at `0x0` instead of `0x1000`.
+   To use a firmware file you downloaded yourself, pick
    it via the dialog's ☰ menu → *Select local MicroPython image*.
 5. Flash, then confirm the board answers at the `>>>` prompt.
 
@@ -211,12 +205,11 @@ Hard-won, roughly in the order to check them:
    watchdog-resets the chip instantly. Don't "upgrade" the driver
    to hardware SPI.
 5. **Thonny version.** Below 4.1, Thonny writes S3 firmware at
-   the classic address and the board boot-loops despite a
-   "verified" install. Use 4.1+ and set the family to ESP32-S3.
+   the wrong address (`0x1000`) and the board boot-loops despite
+   a "verified" install. Use 4.1+ and set the family to ESP32-S3.
 6. **Charge-only USB cables.** The board's LED lights on any
    cable; only a data cable enumerates a port. If the PC sees
-   nothing at all, swap the cable before anything else. Classic
-   boards may also need the CP210x driver (step 4).
+   nothing at all, swap the cable before anything else.
 7. **Meter the VCC rail at the load end.** Feed the HAT from the
    board's **3V3** pin. On at least one clone screw-terminal
    breakout, the 5V terminal carried nothing at all while the

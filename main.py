@@ -781,9 +781,16 @@ def run():
             ntptime.settime()
         except Exception:
             pass
-        pages = list(PAGE_MODULES)
+        # Rotation order comes from the explicit ADMIN_PAGE_ORDER
+        # list (weather first, then layouts 0-8 ascending) - never
+        # from dict order: MicroPython dicts do not preserve
+        # insertion order, and list(PAGE_MODULES) came out reversed
+        # on the board (Mark, Nov 11).
+        pages = list(ADMIN_PAGE_ORDER)
         if cfg.get("mode") == "preferred":
-            pages = [p for p in cfg.get("preferred", [])] or pages
+            wanted = cfg.get("preferred", [])
+            pages = [p for p in ADMIN_PAGE_ORDER if p in wanted] \
+                or list(ADMIN_PAGE_ORDER)
         for page in pages:
             if cfg.get("display_off") or in_overnight():
                 break

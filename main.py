@@ -114,6 +114,7 @@ AUTO_INTERVAL = {"VFR": 3600, "MVFR": 1800, "IFR": 1200, "LIFR": 600}
 
 cfg = dict(DEFAULTS)
 changed = False      # set by admin actions: restart the cycle
+current_page = None  # last page successfully drawn on the panel
 wlan = None
 server = None
 
@@ -398,9 +399,13 @@ def html_page():
              "&deg;F and mph.</span><br><br>")
     p.append("Preferred pages:<br>")
     for name in ADMIN_PAGE_ORDER:
+        title = PAGE_TITLES.get(name, name)
+        if name == current_page:
+            title = ("<b style='color:#c00'>" + title +
+                     "</b> <span style='color:#c00'>&larr; "
+                     "now showing</span>")
         p.append("<label><input type='checkbox' name='pref_" + name +
-                 "'" + chk(name in pref) + "> " +
-                 PAGE_TITLES.get(name, name) + "</label><br>")
+                 "'" + chk(name in pref) + "> " + title + "</label><br>")
     p.append("<br>Interval (seconds, 0 = auto by category): "
              "<input name='interval' value='" +
              str(cfg.get("interval")) +
@@ -656,6 +661,7 @@ def run_page(name):
     # so only one page's memory is resident at a time.
     # Returns the flight category ("weather" page: True), or None on
     # fetch failure.
+    global current_page
     mod_name = PAGE_MODULES[name]
     result = None
     try:
@@ -677,6 +683,8 @@ def run_page(name):
             del sys.modules[m]
     gc.collect()
     print("free RAM after", name, ":", gc.mem_free())
+    if result is not None:
+        current_page = name
     return result
 
 
@@ -691,6 +699,15 @@ def interval_for(result):
 
 def run():
     load_cfg()
+    # Display OFF is a session-only state (Mark, Nov 11): the OFF
+    # flag persists in config.json, but a reboot or power-up must
+    # bring the panel back on its own. Force it off once, here at
+    # startup only - the loop's per-iteration load_cfg() must not
+    # reset an OFF set from the admin while running.
+    if cfg.get("display_off"):
+        cfg["display_off"] = False
+        save_cfg()
+        print("display_off reset at boot (session-only OFF)")
     # Setup mode (rehoming portal) when BOOT was held just after
     # power-up, the admin page left its flag, the saved credentials
     # are unusable, or the saved network will not join.

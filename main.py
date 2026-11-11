@@ -405,7 +405,8 @@ def html_page():
                      "</b> <span style='color:#c00'>&larr; "
                      "now showing</span>")
         p.append("<label><input type='checkbox' name='pref_" + name +
-                 "'" + chk(name in pref) + "> " + title + "</label><br>")
+                 "'" + chk(name in pref) + "> <span id='pg_" + name +
+                 "'>" + title + "</span></label><br>")
     p.append("<br>Interval (seconds, 0 = auto by category): "
              "<input name='interval' value='" +
              str(cfg.get("interval")) +
@@ -468,6 +469,23 @@ def html_page():
              "download mode instead).</div>")
     p.append("<p style='color:#666'>Admin at http://" + ip +
              "/ &middot; settings save to config.json</p>")
+    # Live "now showing" marker (Mark, Nov 11): the page polls the
+    # board's /now endpoint every 5 s and moves the bold-red
+    # highlight in the Preferred list to match - no page reload, so
+    # unsaved form edits are never disturbed.
+    js_titles = ",".join(
+        [name + ":\"" + PAGE_TITLES.get(name, name) + "\""
+         for name in ADMIN_PAGE_ORDER])
+    p.append("<script>var T={" + js_titles + "};var cur=null;"
+             "function mark(n){for(var k in T){var e=document."
+             "getElementById('pg_'+k);if(!e)continue;if(k===n){"
+             "e.innerHTML=\"<b style='color:#c00'>\"+T[k]+\"</b> "
+             "<span style='color:#c00'>&larr; now showing</span>\";}"
+             "else{e.textContent=T[k];}}}"
+             "function poll(){fetch('/now').then(function(r){return "
+             "r.text();}).then(function(t){t=t.trim();"
+             "if(t!==cur){cur=t;mark(t);}}).catch(function(){});}"
+             "setInterval(poll,5000);poll();</script>")
     p.append("</body></html>")
     return "".join(p)
 
@@ -613,6 +631,8 @@ def serve_once():
             except Exception:
                 pass
             updater.apply_update()
+        elif path.startswith("/now"):
+            send_response(cl, current_page or "", "text/plain")
         else:
             send_response(cl, html_page())
     except Exception as e:

@@ -5,8 +5,11 @@
 # What it does:
 # - Joins Wi-Fi (credentials in wifi_cfg.py, as the page tests used),
 #   sets the clock by NTP, starts the admin web server on port 80.
-# - Boot screen on the panel showing the admin URL (Pi behavior:
-#   held 60 s, with the admin page live during the hold).
+# - Connected screen on the panel after a boot join: the network
+#   name and the admin address in big type, held ~40 s with the
+#   admin page live during the hold (Mark's standing rule,
+#   Nov 16, 2026: every device tells the owner its admin address
+#   once connected - the painter clock and LED ticker do the same).
 # - Cycles the proven pages: layout 1 (detailed grid), layout 0
 #   (jumbo category), layout 5 (12-airport grid), weather page.
 #   Mode "cycle" runs the full list; mode "preferred" runs only the
@@ -209,21 +212,46 @@ def push(black, red):
     epd.sleep()
 
 
-def draw_boot(ip):
+def joined_ssid():
+    # The network just joined: ask the radio what it is actually
+    # associated with; fall back to the credentials file that
+    # join_wifi() connected with (prov rewrites it before the
+    # post-setup reboot, so it names the new network too).
+    try:
+        s = wlan.config("essid")
+        if s:
+            return s.decode() if isinstance(s, bytes) else str(s)
+    except Exception:
+        pass
+    return str(getattr(wifi_cfg, "SSID", "") or "")
+
+
+def draw_connected(ip):
+    # Connected screen (Mark's standing rule, Nov 16, 2026: every
+    # device tells the owner its admin address once it connects).
+    # Drawn once per boot, right after the join, as the first thing
+    # the panel shows, and held ~40 s before the first weather
+    # page: the network name and the admin address in the biggest
+    # type the panel screens use, readable across a room. Boot
+    # joins only - mid-run reconnects and page refreshes never
+    # redraw it, and the one extra refresh is the boot one the old
+    # boot screen already spent.
     black, red, bfb, rfb = blank_planes()
     for i in range(5):
         rfb.rect(5 + i, 5 + i, 790 - 2 * i, 470 - 2 * i, 1)
-    textdraw.draw_text(bfb, f48b, 40, 60, "METAR MICRO", 0)
+    textdraw.draw_text(rfb, f48b, 40, 60, "CONNECTED", 1)
     textdraw.draw_text(bfb, f24b, 40, 150,
-                       "Airport: " + str(cfg.get("airport")), 0)
-    textdraw.draw_text(bfb, f24b, 40, 200, "Admin page:", 0)
-    textdraw.draw_text(bfb, f36b, 40, 240, "http://" + ip + "/", 0)
-    textdraw.draw_text(bfb, f20b, 40, 320,
-                       "Open that address to change settings.", 0)
+                       "Network: " + joined_ssid(), 0)
+    textdraw.draw_text(bfb, f24b, 40, 205, "Admin page:", 0)
+    textdraw.draw_text(bfb, f48b, 40, 245, ip, 0)
+    textdraw.draw_text(bfb, f20b, 40, 330,
+                       "Type that address in a browser to "
+                       "change settings.", 0)
     textdraw.draw_text(bfb, f16b, 40, 420,
-                       "First weather page follows in about a minute.", 0)
+                       "First weather page follows in about "
+                       "40 seconds.", 0)
     push(black, red)
-    print("boot screen on panel, admin at http://" + ip + "/")
+    print("connected screen on panel, admin at http://" + ip + "/")
 
 
 def draw_error(page, detail):
@@ -760,8 +788,8 @@ def run():
         except Exception as e:
             print("ntp failed (continuing):", e)
         start_server()
-        draw_boot(ip)
-        wait_with_server(60)
+        draw_connected(ip)
+        wait_with_server(40)
 
     blanked = False
     while True:

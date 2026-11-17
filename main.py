@@ -24,6 +24,12 @@
 #   back on from the admin page.
 # - Settings persist in config.json on the board; the admin Save
 #   rewrites it and restarts the cycle with the new settings.
+# - The admin page follows Mark's standing admin design rule
+#   (Nov 16, 2026; painter clock v24 is the reference): colour-
+#   tinted sections, a project icon as the tab favicon and beside
+#   the title, and every action landing back on the admin page
+#   itself - Save answers with the page plus a note, the
+#   rebooting actions with an auto-refreshing page.
 #
 # Page modules are imported one at a time and purged (with their
 # fonts) after each render, so only one page's fonts sit in RAM.
@@ -347,17 +353,27 @@ def parse_form(body):
     return data
 
 
-# Tab icon + header mark: a miniature of layout 0 (red border,
-# airport top-left, jumbo category) as an inline SVG.
-_ICON_SVG = ("<svg xmlns='http://www.w3.org/2000/svg' "
-             "viewBox='0 0 64 48'>"
-             "<rect x='2' y='2' width='60' height='44' fill='white' "
-             "stroke='%23cc0000' stroke-width='4'/>"
-             "<rect x='8' y='8' width='22' height='6' fill='black'/>"
-             "<text x='32' y='39' font-family='sans-serif' "
-             "font-size='19' font-weight='bold' text-anchor='middle' "
-             "fill='black'>VFR</text></svg>")
-ICON_URI = "data:image/svg+xml," + _ICON_SVG
+# Tab icon + header mark: the four flight categories as dots
+# (VFR green, MVFR blue, IFR red, LIFR magenta) on a panel-white
+# rounded square - the whole product in four dots, and four dots
+# stay legible at favicon size where lettering would smudge.
+# One SVG literal serves both spots - inline beside the title,
+# and as the favicon via a data URI derived from the same
+# literal - so the pair can never drift (the painter clock v24
+# arrangement, Nov 16, 2026). Replaces the layout-0 miniature
+# that served before the design rule.
+ICON_SVG = ("<svg xmlns='http://www.w3.org/2000/svg' "
+            "viewBox='0 0 32 32'>"
+            "<rect x='2' y='2' width='28' height='28' rx='6' "
+            "fill='#ffffff' stroke='#374151' stroke-width='2'/>"
+            "<circle cx='10.5' cy='10.5' r='4.6' fill='#2ca02c'/>"
+            "<circle cx='21.5' cy='10.5' r='4.6' fill='#2456d6'/>"
+            "<circle cx='10.5' cy='21.5' r='4.6' fill='#d62728'/>"
+            "<circle cx='21.5' cy='21.5' r='4.6' fill='#e033d0'/>"
+            "</svg>")
+ICON_URI = ("data:image/svg+xml;utf8,"
+            + ICON_SVG.replace("#", "%23").replace("<", "%3C")
+            .replace(">", "%3E"))
 
 
 def esc(s):
@@ -365,7 +381,29 @@ def esc(s):
             .replace(">", "&gt;"))
 
 
-def html_page():
+def upd_line():
+    # One-line update state for the Status section; the Update
+    # section carries the detail and the Update now button.
+    st = updater.STATE
+    if st.get("failed"):
+        return "Update check failed"
+    if st.get("available"):
+        return "UPDATE AVAILABLE (%d file(s))" % st.get("files", 0)
+    if st.get("checked"):
+        return "Up to date"
+    return "Not checked yet"
+
+
+def html_page(msg=""):
+    # The admin page, organised per Mark's standing admin design
+    # rule (Nov 16, 2026; painter clock v24 is the reference):
+    # colour-tinted fieldset sections in the Visual Logbook
+    # admin's manner, the category-dot icon in the tab and beside
+    # the title, and - via serve_once - every action answering
+    # with this page (plus a .msg note) or an auto-refreshing
+    # page, never a dead-end landing. msg is the note shown after
+    # an action; a plain GET passes none. Every control, field
+    # name and label is the old page's - presentation only.
     ip = wlan.ifconfig()[0] if wlan else "?"
     def chk(cond):
         return " checked" if cond else ""
@@ -377,32 +415,42 @@ def html_page():
     p.append("<meta name='viewport' content='width=device-width,"
              "initial-scale=1'><title>metar-micro admin</title>"
              "<link rel='icon' type='image/svg+xml' href=\"" +
-             ICON_URI + "\"></head>"
-             "<body style='font-family:sans-serif;max-width:560px;"
-             "margin:20px auto;padding:0 12px'>")
-    p.append("<h2><img src=\"" + ICON_URI + "\" alt='' "
-             "style='height:34px;vertical-align:-8px;margin-right:8px'>"
-             "METAR Micro</h2>")
+             ICON_URI + "\">"
+             "<style>"
+             "body{font-family:sans-serif;max-width:560px;"
+             "margin:20px auto;padding:0 12px}"
+             "fieldset{margin:12px 0;border:1px solid #bbb;"
+             "border-radius:6px}"
+             "legend{font-weight:bold;padding:0 4px}"
+             ".msg{background:#efe;border:1px solid #9c9;"
+             "padding:6px}"
+             ".note{color:#666}"
+             ".sec-status{background:#e9f1fd}"
+             ".sec-settings{background:#e7f6ec}"
+             ".sec-timing{background:#e2f5f7}"
+             ".sec-grid{background:#e9e4f5}"
+             ".sec-update{background:#fdeee2}"
+             ".sec-system{background:#fdeaea}"
+             "h2 svg{height:30px;width:30px;vertical-align:-6px}"
+             "</style></head><body>")
+    p.append("<h2>" + ICON_SVG + " METAR Micro</h2>")
+    if msg:
+        p.append("<p class='msg'>" + esc(msg) + "</p>")
+    # ---- Status ----
+    p.append("<fieldset class='sec-status'><legend>Status"
+             "</legend>")
     p.append("<p>Panel airport: <b>" + str(cfg.get("airport")) +
              "</b> &middot; " + local_str() +
              (" &middot; <b>DISPLAY OFF</b>" if cfg.get("display_off")
-              else "") + "</p>")
-    st = updater.STATE
-    if st.get("failed"):
-        p.append("<p style='color:#b00'>" + esc(st["failed"]) + "</p>")
-    elif st.get("available"):
-        p.append("<div style='background:#fff3cd;border:1px solid "
-                 "#d9a400;padding:8px 12px'>Update available: " +
-                 str(st.get("files")) +
-                 " file(s) changed on GitHub. "
-                 "<form method='POST' action='/update' "
-                 "style='display:inline'>"
-                 "<button type='submit' style='font-size:15px'>"
-                 "Update now</button></form></div><br>")
-    elif st.get("checked"):
-        p.append("<p style='color:#666'>Code is current with "
-                 "GitHub.</p>")
+              else "") + "<br>")
+    p.append("Update: " + upd_line() + "<br>")
+    p.append("Admin at http://" + ip +
+             "/ &middot; settings save to config.json</p>")
+    p.append("</fieldset>")
+    # ---- the settings form: Settings / Timing / Layout 5 grid --
     p.append("<form method='POST' action='/save'>")
+    p.append("<fieldset class='sec-settings'><legend>Settings"
+             "</legend>")
     p.append("Airport (ICAO): <input name='airport' value='" +
              str(cfg.get("airport")) +
              "' size='8' style='font-size:16px;"
@@ -422,7 +470,7 @@ def html_page():
     p.append("<option value='metric'" +
              sel(cfg.get("units") != "imperial") +
              ">Metric (&deg;C, km/h, km, hPa, meters)</option>"
-             "</select> <span style='color:#666'>Applies to the "
+             "</select> <span class='note'>Applies to the "
              "METAR data pages; the city weather page always uses "
              "&deg;F and mph.</span><br><br>")
     p.append("Preferred pages:<br>")
@@ -435,11 +483,13 @@ def html_page():
         p.append("<label><input type='checkbox' name='pref_" + name +
                  "'" + chk(name in pref) + "> <span id='pg_" + name +
                  "'>" + title + "</span></label><br>")
-    p.append("<br>Interval (seconds, 0 = auto by category): "
+    p.append("</fieldset>")
+    p.append("<fieldset class='sec-timing'><legend>Timing</legend>")
+    p.append("Interval (seconds, 0 = auto by category): "
              "<input name='interval' value='" +
              str(cfg.get("interval")) +
              "' size='6' style='font-size:16px'><br>")
-    p.append("<span style='color:#666'>The interval is the pause "
+    p.append("<span class='note'>The interval is the pause "
              "between pages, and each page pulls fresh data when it "
              "draws &mdash; so the interval is also how often data "
              "is fetched. <b>0 = auto:</b> the pause follows the "
@@ -449,6 +499,16 @@ def html_page():
              "weather, the more often it updates. A failed fetch "
              "ignores this and retries after 60 seconds.</span>"
              "<br><br>")
+    p.append("<label><input type='checkbox' name='overnight'" +
+             chk(cfg.get("overnight")) +
+             "> Turn off overnight (hold last image)</label><br>")
+    p.append("Off from <input name='off_start' value='" +
+             str(cfg.get("off_start")) + "' size='6'> to "
+             "<input name='off_end' value='" +
+             str(cfg.get("off_end")) + "' size='6'> (HH:MM, 24h)")
+    p.append("</fieldset>")
+    p.append("<fieldset class='sec-grid'><legend>Layout 5 grid"
+             "</legend>")
     grid = cfg.get("grid12") or DEFAULTS["grid12"]
     p.append("Layout 5 grid airports (12, in order &mdash; the grid "
              "fills column by column):<br>")
@@ -460,18 +520,33 @@ def html_page():
                  "oninput='this.value=this.value.toUpperCase()'>")
         if i % 4 == 3:
             p.append("<br>")
-    p.append("<br><br>")
-    p.append("<label><input type='checkbox' name='overnight'" +
-             chk(cfg.get("overnight")) +
-             "> Turn off overnight (hold last image)</label><br>")
-    p.append("Off from <input name='off_start' value='" +
-             str(cfg.get("off_start")) + "' size='6'> to "
-             "<input name='off_end' value='" +
-             str(cfg.get("off_end")) + "' size='6'> (HH:MM, 24h)"
-             "<br><br>")
-    p.append("<button type='submit' style='font-size:16px;"
-             "padding:8px 18px'>Save</button></form>")
-    p.append("<hr><p>")
+    p.append("</fieldset>")
+    p.append("<p><button type='submit' style='font-size:16px;"
+             "padding:8px 18px'>Save</button></p></form>")
+    # ---- Update ----
+    p.append("<fieldset class='sec-update'><legend>Update</legend>")
+    st = updater.STATE
+    if st.get("failed"):
+        p.append("<p style='color:#b00'>" + esc(st["failed"]) + "</p>")
+    elif st.get("available"):
+        p.append("<div style='background:#fff3cd;border:1px solid "
+                 "#d9a400;padding:8px 12px'>Update available: " +
+                 str(st.get("files")) +
+                 " file(s) changed on GitHub. "
+                 "<form method='POST' action='/update' "
+                 "style='display:inline'>"
+                 "<button type='submit' style='font-size:15px'>"
+                 "Update now</button></form></div>")
+    elif st.get("checked"):
+        p.append("<p class='note'>Code is current with "
+                 "GitHub.</p>")
+    else:
+        p.append("<p class='note'>Not checked yet - the board "
+                 "checks GitHub about once an hour.</p>")
+    p.append("</fieldset>")
+    # ---- System ----
+    p.append("<fieldset class='sec-system'><legend>System</legend>")
+    p.append("<p>")
     if cfg.get("display_off"):
         p.append("<form action='/on' style='display:inline'>"
                  "<button type='submit' style='font-size:15px'>"
@@ -483,7 +558,7 @@ def html_page():
     p.append("<form action='/reboot' style='display:inline'>"
              "<button type='submit' style='font-size:15px'>"
              "Reboot board</button></form></p>")
-    p.append("<div style='color:#666'><b>Moving or gifting this "
+    p.append("<div class='note'><b>Moving or gifting this "
              "display?</b><br>"
              "On a new Wi-Fi network it needs no preparation: plug "
              "it in, and when it cannot find the old network it "
@@ -495,8 +570,7 @@ def html_page():
              "just <i>after</i> power-up, for about 3 seconds "
              "(holding it while plugging in puts the board in "
              "download mode instead).</div>")
-    p.append("<p style='color:#666'>Admin at http://" + ip +
-             "/ &middot; settings save to config.json</p>")
+    p.append("</fieldset>")
     # Live "now showing" marker (Mark, Nov 11): the page polls the
     # board's /now endpoint every 5 s and moves the bold-red
     # highlight in the Preferred list to match - no page reload, so
@@ -516,7 +590,6 @@ def html_page():
              "setInterval(poll,5000);poll();</script>")
     p.append("</body></html>")
     return "".join(p)
-
 
 def apply_save(body):
     global changed
@@ -573,12 +646,31 @@ def send_response(cl, body, ctype="text/html"):
         pass
 
 
-def redirect_home(cl):
-    try:
-        cl.send("HTTP/1.0 303 See Other\r\nLocation: /\r\n"
-                "Connection: close\r\n\r\n")
-    except Exception:
-        pass
+def refresh_page(verb, delay, detail=""):
+    # The rebooting actions' answer: a minimal page that sends
+    # the browser back to the admin page once the board is up
+    # again (meta refresh), with a manual link if it stalls -
+    # the flow ends on the admin page, never a dead end (Mark's
+    # admin design rule, Nov 16, 2026; painter clock v24). The
+    # delays run longer than the painter clock's: this board
+    # re-joins Wi-Fi and re-pushes an e-paper panel before its
+    # server answers again.
+    body = ("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,"
+            "initial-scale=1'>"
+            "<meta http-equiv='refresh' content='" + str(delay) +
+            ";url=/'>"
+            "<title>metar-micro admin</title></head>"
+            "<body style='font-family:sans-serif;max-width:560px;"
+            "margin:20px auto;padding:0 12px'>"
+            "<p><b>" + verb + "</b></p>")
+    if detail:
+        body += "<p>" + detail + "</p>"
+    body += ("<p>The board is rebooting - this page will reload "
+             "the admin page by itself in about " + str(delay) +
+             " seconds. If it doesn't, <a href='/'>tap here</a>."
+             "</p></body></html>")
+    return body
 
 
 def serve_once():
@@ -625,23 +717,23 @@ def serve_once():
                     break
                 tries += 1
             apply_save(body)
-            # Bounce straight back to the admin page (Mark's ask,
-            # Nov 10, 2026) - the re-rendered form showing the
-            # saved values is the confirmation.
-            redirect_home(cl)
+            # Answer with the admin page itself plus a note
+            # (Mark's admin design rule, Nov 16, 2026) - the
+            # re-rendered form showing the saved values is the
+            # confirmation.
+            send_response(cl, html_page("Settings saved."))
         elif path.startswith("/off"):
             cfg["display_off"] = True
             save_cfg()
             changed = True
-            redirect_home(cl)
+            send_response(cl, html_page("Display turned off."))
         elif path.startswith("/on"):
             cfg["display_off"] = False
             save_cfg()
             changed = True
-            redirect_home(cl)
+            send_response(cl, html_page("Display turned on."))
         elif path.startswith("/reboot"):
-            send_response(cl, "<html><body><h3>Rebooting...</h3>"
-                          "</body></html>")
+            send_response(cl, refresh_page("Rebooting...", 45))
             try:
                 cl.close()
             except Exception:
@@ -649,11 +741,11 @@ def serve_once():
             time.sleep(1)
             machine.reset()
         elif method == "POST" and path.startswith("/update"):
-            send_response(cl, "<html><body><h3>Updating...</h3>"
-                          "<p>Downloading and verifying the changed "
-                          "files. The board reboots when the update "
-                          "lands; if it fails, the reason shows on "
-                          "the admin page.</p></body></html>")
+            send_response(cl, refresh_page(
+                "Updating...", 90,
+                "Downloading and verifying the changed files. "
+                "The board reboots when the update lands; if it "
+                "fails, the reason shows on the admin page."))
             try:
                 cl.close()
             except Exception:

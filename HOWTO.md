@@ -117,8 +117,13 @@ applies to `config.json`, which the device creates itself.
 
 1. Open `main.py` in Thonny and run it (or just power-cycle the
    board — `main.py` runs automatically on every boot).
-2. The console shows the Wi-Fi join and the board's IP address;
-   the panel draws a boot screen with the admin URL.
+2. The console shows the Wi-Fi join and the board's IP address.
+   On the panel, a **Connected screen** follows the join: the
+   network name and the admin address in big type, held for
+   about 40 seconds (the admin page is live during the hold)
+   before the first weather page draws. That screen is how the
+   display announces where its admin page lives after every
+   boot.
 3. Browse to `http://<board-ip>/` — that's the admin page. Set:
    - **Airport (ICAO)** — the station everything keys off
      (default KFLG)
@@ -130,6 +135,20 @@ applies to `config.json`, which the device creates itself.
      draws
 4. Save. The page bounces straight back to the form with your
    values in it — that's the confirmation.
+
+### The admin page itself
+
+One page, six colour-tinted sections, with an icon of four
+flight-category dots in the browser tab and beside the title:
+**Status** (blue), **Settings** (green — airport, mode,
+measurements), **Timing** (teal — the refresh interval and the
+overnight window), **Layout 5 grid** (lavender), **Update**
+(orange) and **System** (soft red — display off/on, reboot).
+Every action lands back on the page itself; there are no
+dead-end confirmation screens. The refresh interval in Timing
+deliberately stays a number box rather than a slider: **0 is a
+sentinel** (auto by flight category) and the range runs from
+seconds to six hours, which a slider would make clumsy.
 
 **Time zone:** the code computes local time as UTC−7 year-round
 (Phoenix). To run elsewhere, change `TZ_OFFSET` in `main.py` and
@@ -173,7 +192,9 @@ No keyboard, monitor, or reflash needed:
    (captive portal): pick the new network from the list (or type
    it), enter the password, save.
 3. The board saves **only** the credentials and reboots onto the
-   new network.
+   new network. After the join, the Connected screen (§6) shows
+   the new network name and the new admin address for about 40
+   seconds — that's how the new owner finds the admin page.
 
 To force setup mode on a working display (e.g. before handing it
 over): hold the board's **BOOT** button starting **just after**
